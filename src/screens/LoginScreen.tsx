@@ -65,6 +65,8 @@ const LoginScreen = () => {
                     formLogin.email, 
                     formLogin.password
                 );
+                //navegar al home
+                navigation.dispatch(CommonActions.navigate({name:'Home'}))
                 //console.log(response);
                 setShowMesssage({
                     visible:true,

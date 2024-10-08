@@ -71,5 +71,20 @@ export const styles=StyleSheet.create({
     rootInputsProduct:{
         flexDirection:'row', 
         justifyContent:'space-between'
+    },
+    rootDetail:{
+        flex:1,
+        padding:20,
+        backgroundColor:'white',
+        gap:20
+
+    },
+    textDetail:{
+        fontWeight:'bold',
+        fontSize:16
+    },
+    iconSignOut:{
+        alignItems:'center',
+        marginTop:20
     }
 })

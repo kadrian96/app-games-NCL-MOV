@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View } from "react-native";
+import { View, Platform } from 'react-native';
 import {
   Button,
   Divider,
@@ -11,7 +11,7 @@ import {
   TextInput,
 } from "react-native-paper";
 import { styles } from "../../../theme/styles";
-import { dbRealTime } from "../../../config/firebaseConfig";
+import { auth, dbRealTime } from "../../../config/firebaseConfig";
 import { push, ref, set } from "firebase/database";
 
 //interface
@@ -21,12 +21,12 @@ interface Props {
   setShowModalProduct: Function; //funcion del hook useState
 }
 //interface formProduct
-interface formProduct {
+interface VideoGame {
   code: string;
-  nameProduct: string;
+  nameGame: string;
+  platform: string;
   price: number;
-  stock: number;
-  description: string;
+  category: string;
 }
 //Interface - Message
 interface ShowMessage{
@@ -40,12 +40,12 @@ const NewProductComponent = ({
   setShowModalProduct,
 }: Props) => {
   //hook useState: capturara y gurdar estado de formulario
-  const [formProduct, setformProduct] = useState<formProduct>({
+  const [formProduct, setformProduct] = useState<VideoGame>({
     code: "",
-    nameProduct: "",
+    nameGame: "",
+    platform: "",
     price: 0,
-    stock: 0,
-    description: "",
+    category: "",
   });
    //hook useState: cambiar el estado del mensaje
    const [showMessage, setShowMesssage]= useState<ShowMessage>({
@@ -63,10 +63,10 @@ const NewProductComponent = ({
   const handleSaveProduct = async() => {
     if (
       !formProduct.code ||
-      !formProduct.nameProduct ||
+      !formProduct.nameGame ||
+      !formProduct.platform ||
       !formProduct.price ||
-      !formProduct.stock ||
-      !formProduct.description
+      !formProduct.category
     ) {
       setShowMesssage({
         visible:true,
@@ -78,14 +78,20 @@ const NewProductComponent = ({
 
     //console.log(formProduct);
     //1.-crear o direccionar a la tbal de la base de datos:
-    const dbRef =ref(dbRealTime, 'productos2')
+    const dbRef =ref(dbRealTime, 'videojuegos/' +auth.currentUser?.uid)  //colocar un id del usuario para separar los productos por usuario
     //2. Crear una coleccion que agregue los datos en la dbRef
     const saveProduct = push(dbRef);
     //3. Almacenar los datos en la BDD
     try{
       await set(saveProduct,formProduct)
       //cerrar modal
+      setShowMesssage({
+        visible:true,
+        message:'Se guardo la informacion de manera correcta!',
+        color:'#22AD20FF'
+      })
       setShowModalProduct(false)
+      
 
     }catch(e){
         console.log(e)
@@ -106,7 +112,7 @@ const NewProductComponent = ({
             contentContainerStyle={styles.modal}
           >
             <View style={styles.header}>
-              <Text variant="headlineSmall">Nuevo Producto</Text>
+              <Text variant="headlineSmall">Nuevo Juego</Text>
               <View style={styles.icon}>
                 <IconButton
                   size={30}
@@ -126,30 +132,25 @@ const NewProductComponent = ({
             <TextInput
               label="Nombre"
               mode="outlined"
-              onChangeText={(value) => handleSetValues("nameProduct", value)}
+              onChangeText={(value) => handleSetValues("nameGame", value)}
             />
-            <View style={styles.rootInputsProduct}>
-              <TextInput
+            <TextInput
+                label="Plataforma"
+                mode="outlined"
+                onChangeText={(value) => handleSetValues("platform", value)}
+            />
+             <TextInput
                 label="Precio"
                 mode="outlined"
                 keyboardType="numeric"
-                style={{ width: "48%" }}
+                style={{ width: "50%" }}
                 onChangeText={(value) => handleSetValues("price", value)}
               />
-              <TextInput
-                label="Stock"
-                mode="outlined"
-                keyboardType="numeric"
-                style={{ width: "48%" }}
-                onChangeText={(value) => handleSetValues("stock", value)}
-              />
-            </View>
+            
             <TextInput
-              label="Descripción"
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-              onChangeText={(value) => handleSetValues("description", value)}
+              label="Categoría"
+              mode="outlined"       
+              onChangeText={(value) => handleSetValues("category", value)}
             />
             <Button
               mode="contained"

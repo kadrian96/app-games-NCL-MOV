@@ -14,28 +14,29 @@ import {
 } from "react-native-paper";
 import { styles } from "../../theme/styles";
 import { signOut } from "firebase/auth";
-import { auth } from "../../config/firebaseConfig";
+import { auth, dbRealTime } from "../../config/firebaseConfig";
 import { CommonActions, useNavigation } from "@react-navigation/native";
 import firebase from "@firebase/auth";
 import { updateProfile } from "firebase/auth";
 import ProductCardComponent from "./components/ProductCardComponent";
 import NewProductComponent from "./components/NewProductComponent";
+import { onValue, ref } from "firebase/database";
+
+//interface FormUser
+interface FormUser {
+  name: string;
+}
+
+//interface VideoGame
+export interface VideoGame {
+  id: string;
+  code: string;
+  nameGame: string;
+  platform: string;
+  price: number;
+  category: string;
+}
 export const HomeScreen = () => {
-  //interface FormUser
-  interface FormUser {
-    name: string;
-  }
-
-  //interface formProduct
-  interface Product {
-    id: string;
-    code: string;
-    nameProduct: string;
-    price: number;
-    stock: number;
-    description: string;
-  }
-
   //hook useState: cambiar el estado del formulario
   const [formUser, setformUser] = useState<FormUser>({
     name: "",
@@ -45,30 +46,13 @@ export const HomeScreen = () => {
   const [userData, setuserData] = useState<firebase.User | null>(null);
 
   //hook useState: capturar y modifica arreglo de productos
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: "1",
-      code: "34FC",
-      nameProduct: "Teclado",
-      price: 25,
-      stock: 10,
-      description: "Teclado gaming RadioShack Striker mecanico negro",
-    },
-    {
-      id: "2",
-      code: "35FC",
-      nameProduct: "Mouse",
-      price: 30,
-      stock: 5,
-      description: "Mouse RadioShack 2604784 Negro",
-    },
-  ]);
+  const [products, setProducts] = useState<VideoGame[]>([]);
 
   //hook useState: permitir que e modal de usuario se visualice o no
   const [showModalProfile, setshowModalProfile] = useState<boolean>(false);
 
   //hook useState: permitir que e modal de producto se visualice o no
-  const [showModalProduct, setshowModalProduct] = useState<boolean>(false)
+  const [showModalProduct, setshowModalProduct] = useState<boolean>(false);
 
   //hook useNavigation: permite la navegacion por screens
   const navigation = useNavigation();
@@ -77,18 +61,9 @@ export const HomeScreen = () => {
   useEffect(() => {
     setuserData(auth.currentUser); //Obtener informacion usuario autenticado
     setformUser({ name: auth.currentUser?.displayName ?? "" });
+    //Llamar a la funcion para la lista de products
+    getAllProducts();
   }, []);
-
-  const cerrarSesion = () => {
-    signOut(auth)
-      .then(() => {
-        // Sign-out successful.
-        navigation.dispatch(CommonActions.navigate({ name: "Login" }));
-      })
-      .catch((error) => {
-        // An error happened.
-      });
-  };
 
   //funcion: actualizar el estado del formulario
   const handleSetValues = (key: string, value: string) => {
@@ -106,6 +81,44 @@ export const HomeScreen = () => {
 
     //cerrar modal
     setshowModalProfile(false);
+  };
+
+  //funcion: obtener los productos para listarlos
+  const getAllProducts = () => {
+    //1.- Direccionar a la base de datos
+    const dbRef = ref(dbRealTime, "videojuegos/"+ auth.currentUser?.uid);
+    //2. Acceder a la data
+    onValue(dbRef, (snapshot) => {
+      //3. Capturar la data
+      const data = snapshot.val(); //obtener la data en un formato esperado
+      // VERIFICAR SI EXISTE DATA
+      if(!data) return;
+
+      //4. Obtener las keys de cada dato
+      const getKeys = Object.keys(data);
+
+      //5. Crear un arreglo para almacenar cada producto de la base
+      const listProduct: VideoGame[] = [];
+
+      //6. Recorrer la keys para acceder a cada producto
+      getKeys.forEach((key) => {
+        const value = { ...data[key], id: key };
+        listProduct.push(value);
+      });
+      //7. Actualizar la data obtenida en el arreglo del hook useState
+      setProducts(listProduct);
+    });
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      navigation.dispatch(
+        CommonActions.reset({ index: 0, routes: [{ name: "Login" }] })
+      ); //indicar el indice de la ruta inicial y el nombre
+    } catch (e) {
+      console.log(e);
+    }
   };
 
   return (
@@ -129,21 +142,11 @@ export const HomeScreen = () => {
         <View>
           <FlatList
             data={products}
-            renderItem={({ item }) => <ProductCardComponent />}
+            renderItem={({ item }) => <ProductCardComponent product={item} />}
             keyExtractor={(item) => item.id}
           />
         </View>
-        <View style={styles.signoutButton}>
-          <Button
-            icon="account-cancel"
-            mode="contained"
-            buttonColor={"#dc143c"}
-            style={{ width: 150 }}
-            onPress={() => cerrarSesion()}
-          >
-            Cerrar Sesion
-          </Button>
-        </View>
+
       </View>
       <Portal>
         <Modal visible={showModalProfile} contentContainerStyle={styles.modal}>
@@ -178,6 +181,15 @@ export const HomeScreen = () => {
           >
             Actualizar
           </Button>
+          <View style={styles.iconSignOut}>
+            <IconButton
+              icon="logout-variant"
+              iconColor={MD3Colors.error50}
+              size={35}
+              mode="contained"
+              onPress={() => {handleSignOut()}}
+            />
+          </View>
         </Modal>
       </Portal>
       <FAB
@@ -185,7 +197,10 @@ export const HomeScreen = () => {
         style={styles.fabProduct}
         onPress={() => setshowModalProduct(true)}
       />
-      <NewProductComponent showModalProduct={showModalProduct} setShowModalProduct={setshowModalProduct}/>
+      <NewProductComponent
+        showModalProduct={showModalProduct}
+        setShowModalProduct={setshowModalProduct}
+      />
     </>
   );
 };
